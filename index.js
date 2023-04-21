@@ -5,7 +5,7 @@ import { toNumber, sortBy } from 'lodash-es';
 import { setTimeout } from 'timers/promises';
 import {sendTelegramMessage} from "./telegram.js";
 
-const lowPrice = 70;
+const lowPrice = 69;
 const showBrowser = false;
 
 const stealth = StealthPlugin();
@@ -16,6 +16,7 @@ const page = await browser.newPage();
 
 await getLowestForSalePriceAnonymousNumber()
 await getLowestUnderHourAuctionPriceAnonymousNumber()
+await getDailyToncoinPrice()
 
 async function getLowestForSalePriceAnonymousNumber() {
   await page.goto('https://fragment.com/numbers?sort=price_asc&filter=sale');
@@ -64,6 +65,21 @@ async function getLowestUnderHourAuctionPriceAnonymousNumber() {
       sendTelegramMessage(`🎉 auction! ${priceNumber} ton (minimum bid) anonymous number ends in ${time}!\n${link}`);
     }
   });
+}
+
+async function getDailyToncoinPrice() {
+  // if current time is not between 4am and 4:05am, return
+  const now = new Date();
+  if (now.getHours() !== 4 || now.getMinutes() >= 5)
+    return;
+
+  await page.goto('https://ton.org/toncoin');
+  await setTimeout(2000);
+  const toncoinPrice = await page.evaluate(() =>
+      document.querySelector('.ToncoinWidget__price div.LableValue__value').innerText
+  );
+
+  sendTelegramMessage(`${toncoinPrice} is the current Toncoin price`, true);
 }
 
 browser.close()

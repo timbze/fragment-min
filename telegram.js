@@ -2,7 +2,7 @@ import {readFileSync} from 'fs';
 
 const url = `https://api.telegram.org/bot{{TOKEN}}/sendMessage`;
 
-export function sendTelegramMessage(message) {
+export function sendTelegramMessage(message, sendWithoutSound = false) {
     getEnv()
     fetch(url.replace('{{TOKEN}}', process.env['TELEGRAM_BOT_TOKEN']), {
         method: 'POST',
@@ -12,6 +12,7 @@ export function sendTelegramMessage(message) {
         body: JSON.stringify({
             chat_id: process.env['MY_CHAT_ID'],
             text: message,
+            disable_notification: sendWithoutSound,
         }),
     })
         .then((response) => response.json())
