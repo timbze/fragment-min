@@ -29,7 +29,7 @@ async function getLowestForSalePriceAnonymousNumber() {
         document.querySelector('section.js-search-results table td:first-child a').href
     );
 
-    sendTelegramMessage(`💥 ${firstPriceNumber} ton number for sale!\n${firstLink}`);
+    sendTelegramMessage(`💥 ${firstPriceNumber} ton anonymous number for sale!\n${firstLink}`);
   }
 }
 
@@ -61,7 +61,7 @@ async function getLowestUnderHourAuctionPriceAnonymousNumber() {
   results.forEach(({ price, link, time }) => {
     const priceNumber = toNumber(price);
     if (priceNumber < lowPrice) {
-      sendTelegramMessage(`🎉 auction! ${priceNumber} ton number ends in ${time}!\n${link}`);
+      sendTelegramMessage(`🎉 auction! ${priceNumber} ton (minimum bid) anonymous number ends in ${time}!\n${link}`);
     }
   });
 }
