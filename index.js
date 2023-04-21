@@ -3,50 +3,67 @@ import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { executablePath } from 'puppeteer';
 import { toNumber, sortBy } from 'lodash-es';
 import { setTimeout } from 'timers/promises';
+import {sendTelegramMessage} from "./telegram.js";
+
+const lowPrice = 70;
+const showBrowser = false;
 
 const stealth = StealthPlugin();
 puppeteer.use(stealth);
 
-const browser = await puppeteer.launch({ args: ['--no-sandbox'], headless: false, executablePath: executablePath() });
+const browser = await puppeteer.launch({ args: ['--no-sandbox'], headless: !showBrowser, executablePath: executablePath() });
 const page = await browser.newPage();
-await page.goto('https://fragment.com/numbers?sort=price_asc&filter=auction');
-const list = await page.evaluate(() =>
-  Array.prototype.map.call(document.querySelectorAll('table td:first-child a'), x => x.href)
-);
 
-const NUMBER_TO_CHECK = 2000;
-let pos = 0;
-const values = [];
+await getLowestForSalePriceAnonymousNumber()
+await getLowestUnderHourAuctionPriceAnonymousNumber()
 
-for (const link of list) {
-  await setTimeout(500);
-  await page.goto(link);
-  const value = await page.evaluate(() => document.querySelector('.js-buy-now-btn')?.getAttribute('data-bid-amount'));
+async function getLowestForSalePriceAnonymousNumber() {
+  await page.goto('https://fragment.com/numbers?sort=price_asc&filter=sale');
+  const firstPrice = await page.evaluate(() =>
+      document.querySelector('section.js-search-results table td.thin-last-col div.tm-value').innerText
+  );
 
-  if (value) {
-    values.push({ link, value: toNumber(value) });
-  }
+  const firstPriceNumber = toNumber(firstPrice);
+  if (firstPriceNumber < lowPrice) {
+    const firstLink = await page.evaluate(() =>
+        document.querySelector('section.js-search-results table td:first-child a').href
+    );
 
-  const min = sortBy(values, 'value').shift();
-  const log = {
-    current: {
-      link,
-      value,
-    },
-    min,
-  };
-
-  pos += 1;
-
-  const progress = Math.ceil((pos / list.length) * 100);
-
-  console.log(`🕝 processed ${progress}%`, log);
-
-  if (pos > NUMBER_TO_CHECK) {
-    break;
+    sendTelegramMessage(`💥 ${firstPriceNumber} ton number for sale!\n${firstLink}`);
   }
 }
-const sorted = sortBy(values, 'value');
 
-const interesting = sorted.slice(0, 10);
-console.log('🤑 Top lots:', interesting);
+async function getLowestUnderHourAuctionPriceAnonymousNumber() {
+  await page.goto('https://fragment.com/numbers?sort=ending&filter=auction');
+  const results = await page.evaluate(() => {
+    const twentyRows = Array.from(document.querySelectorAll('section.js-search-results table tr:not(:nth-child(n + 11))'));
+    const filteredRows = [];
+
+    twentyRows.forEach((row) => {
+      const timeElement = row.querySelector('td.wide-last-col div.tm-timer time');
+      const time = timeElement ? timeElement.innerText : null;
+      if (!time || time.includes('hour')) return;
+
+      const priceElement = row.querySelector('td.thin-last-col div.tm-value');
+      const price = priceElement ? priceElement.innerText : null;
+      if (!price) return;
+
+      const linkElement = row.querySelector('td:first-child a');
+      const link = linkElement ? linkElement.href : null;
+      if (!link) return;
+
+      filteredRows.push({ price, link, time });
+    });
+
+    return filteredRows;
+  });
+
+  results.forEach(({ price, link, time }) => {
+    const priceNumber = toNumber(price);
+    if (priceNumber < lowPrice) {
+      sendTelegramMessage(`🎉 auction! ${priceNumber} ton number ends in ${time}!\n${link}`);
+    }
+  });
+}
+
+browser.close()
