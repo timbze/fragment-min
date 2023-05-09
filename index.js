@@ -3,9 +3,10 @@ import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { executablePath } from 'puppeteer';
 import { toNumber, sortBy } from 'lodash-es';
 import { setTimeout } from 'timers/promises';
-import {sendTelegramMessage} from "./telegram.js";
+import {getEnv, getTelegramUpdates, sendTelegramMessage} from "./telegram.js";
 
-const lowPrice = 69;
+getEnv()
+const lowPrice = process.env['LOW'];
 const showBrowser = false;
 
 const stealth = StealthPlugin();
@@ -14,9 +15,13 @@ puppeteer.use(stealth);
 const browser = await puppeteer.launch({ args: ['--no-sandbox'], headless: !showBrowser, executablePath: executablePath() });
 const page = await browser.newPage();
 
+await getTelegramUpdates()
+
 await getLowestForSalePriceAnonymousNumber()
-await getLowestUnderHourAuctionPriceAnonymousNumber()
 await getDailyToncoinPrice()
+// await getLowestEndingSoonAuctionPriceAnonymousNumber()
+
+browser.close()
 
 async function getLowestForSalePriceAnonymousNumber() {
   await page.goto('https://fragment.com/numbers?sort=price_asc&filter=sale');
@@ -34,13 +39,13 @@ async function getLowestForSalePriceAnonymousNumber() {
   }
 }
 
-async function getLowestUnderHourAuctionPriceAnonymousNumber() {
+async function getLowestEndingSoonAuctionPriceAnonymousNumber() {
   await page.goto('https://fragment.com/numbers?sort=ending&filter=auction');
   const results = await page.evaluate(() => {
-    const twentyRows = Array.from(document.querySelectorAll('section.js-search-results table tr:not(:nth-child(n + 11))'));
+    const rows = Array.from(document.querySelectorAll('section.js-search-results table tr:not(:nth-child(n + 50))'));
     const filteredRows = [];
 
-    twentyRows.forEach((row) => {
+    rows.forEach((row) => {
       const timeElement = row.querySelector('td.wide-last-col div.tm-timer time');
       const time = timeElement ? timeElement.innerText : null;
       if (!time || time.includes('hour')) return;
@@ -74,12 +79,10 @@ async function getDailyToncoinPrice() {
     return;
 
   await page.goto('https://ton.org/toncoin');
-  await setTimeout(2000);
+  await setTimeout(4000);
   const toncoinPrice = await page.evaluate(() =>
       document.querySelector('.ToncoinWidget__price div.LableValue__value').innerText
   );
 
   sendTelegramMessage(`${toncoinPrice} is the current Toncoin price`, true);
 }
-
-browser.close()
