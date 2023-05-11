@@ -18,7 +18,8 @@ const page = await browser.newPage();
 await getTelegramUpdates()
 
 await getLowestForSalePriceAnonymousNumber()
-await getDailyToncoinPrice()
+await getDailyToncoinPriceFromCoinMarketCap()
+// await getDailyToncoinPriceFromTonOrg()
 // await getLowestEndingSoonAuctionPriceAnonymousNumber()
 
 browser.close()
@@ -72,7 +73,7 @@ async function getLowestEndingSoonAuctionPriceAnonymousNumber() {
   });
 }
 
-async function getDailyToncoinPrice() {
+async function getDailyToncoinPriceFromTonOrg() {
   // if current time is not between 4am and 4:05am, return
   const now = new Date();
   if (now.getHours() !== 4 || now.getMinutes() >= 5)
@@ -83,6 +84,27 @@ async function getDailyToncoinPrice() {
   const toncoinPrice = await page.evaluate(() =>
       document.querySelector('.ToncoinWidget__price div.LableValue__value').innerText
   );
+
+  sendTelegramMessage(`${toncoinPrice} is the current Toncoin price`, true);
+}
+
+async function getDailyToncoinPriceFromCoinMarketCap() {
+  // if current time is not between 4am and 4:05am, return
+  const now = new Date();
+  if (now.getHours() !== 4 || now.getMinutes() >= 5)
+    return;
+
+  await page.goto('https://coinmarketcap.com/currencies/toncoin/');
+  // await setTimeout(2000);
+  const toncoinPrice = await page.evaluate(() => {
+    try {
+      const a = 'div.priceTitle .priceValue span'
+      const b = 'div.coin-stats-header .alignBaseline span.base-text'
+      return (document.querySelector(a) ?? document.querySelector(b)).innerText
+    } catch (e) {
+      console.error(e)
+    }
+  });
 
   sendTelegramMessage(`${toncoinPrice} is the current Toncoin price`, true);
 }
